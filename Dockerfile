@@ -1,4 +1,4 @@
-FROM rust:1.83
+FROM rust:1.82
 
 WORKDIR /usr/src/gmail-prom-exporter-rs
 COPY . .
