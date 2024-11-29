@@ -59,7 +59,7 @@ impl UsableMessageDetails {
         ));
 
         self.labels.iter().for_each(|label| {
-            metrics_labels.push(("label".to_owned(), label.clone()));
+            metrics_labels.push((format!("label_{}", label), "true".to_owned()));
         });
 
         metrics_labels
