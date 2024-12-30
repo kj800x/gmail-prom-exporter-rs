@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use serde_json::Value;
 use url::{self, Url};
 
-#[derive(Debug)]
+use crate::mail;
+
+#[derive(Debug, Clone)]
 pub struct GoogleAuth {
     client_id: String,
     client_secret: String,
@@ -22,6 +24,51 @@ impl GoogleAuth {
             refresh_token: std::env::var_os("GOOGLE_REFRESH_TOKEN")
                 .map(|s| s.to_string_lossy().to_string()),
         }
+    }
+
+    pub async fn load_from_env() -> Self {
+        let mut google_auth = Self::new_from_env();
+
+        if let Some(callback_code) = std::env::var_os("GOOGLE_CALLBACK") {
+            println!("Handling callback url...");
+            let callback_code = callback_code.to_string_lossy().to_string();
+            google_auth.handle_callback_url(callback_code).await;
+            println!();
+            println!("Auth updated based on callback url, please update env vars:");
+            google_auth.print_env_vars();
+        }
+        let mut mail = mail::MailClient {
+            google_client: google_auth.clone(),
+        };
+
+        if google_auth.is_authenticated() && mail.test_auth().await {
+            println!("Authenticated!");
+        } else {
+            println!("Not authenticated!");
+
+            let auth_url = google_auth.get_auth_url();
+            println!("Auth URL: {}", auth_url);
+
+            println!("Please visit the URL above to authenticate.");
+            println!("Set the GOOGLE_CALLBACK environment variable to the code you receive.");
+
+            std::process::exit(1);
+        }
+
+        google_auth
+    }
+
+    pub fn print_env_vars(&self) {
+        println!();
+        println!("export GOOGLE_CLIENT_ID={}", self.client_id);
+        println!("export GOOGLE_CLIENT_SECRET={}", self.client_secret);
+        if let Some(refresh_token) = &self.refresh_token {
+            println!("export GOOGLE_REFRESH_TOKEN={}", refresh_token);
+        }
+        if let Some(access_token) = &self.access_token {
+            println!("export GOOGLE_ACCESS_TOKEN={}", access_token);
+        }
+        println!();
     }
 
     pub fn is_authenticated(&self) -> bool {
@@ -44,7 +91,6 @@ impl GoogleAuth {
             .to_string()
     }
 
-    // https://example.com/?code=4/0AeanS0Z4DfVlyGt7uyKggf1Kfm_FCuBrJjSNebnyqSwwU9e2Az_PY79HZ1XsYkF8mmjv3Q&scope=https://www.googleapis.com/auth/gmail.readonly
     pub async fn handle_callback_url(&mut self, callback_url: String) {
         let url = Url::parse(&callback_url).unwrap();
         let code = url
@@ -77,7 +123,7 @@ impl GoogleAuth {
         self.access_token = Some(
             response_json["access_token"]
                 .as_str()
-                .expect("expected token exchange response to include an access_token")
+                .expect("expected token exchange response to include an access_token. Have you already used this callback url?")
                 .to_owned(),
         );
         self.refresh_token = Some(

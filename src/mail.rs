@@ -51,7 +51,7 @@ impl UsableMessageDetails {
         ));
         metrics_labels.push((
             "from_domain".to_owned(),
-            self.to.first_domain().unwrap_or("unknown".to_string()),
+            self.from.first_domain().unwrap_or("unknown".to_string()),
         ));
         metrics_labels.push((
             "to_domain".to_owned(),
@@ -225,6 +225,27 @@ pub struct MailClient {
 }
 
 impl MailClient {
+    pub async fn test_auth(&mut self) -> bool {
+        let client = reqwest::Client::new();
+
+        let res = client
+            .get("https://www.googleapis.com/gmail/v1/users/me/profile")
+            .header(
+                "Authorization",
+                format!(
+                    "Bearer {}",
+                    self.google_client.access_token.as_ref().unwrap()
+                ),
+            )
+            .send()
+            .await
+            .unwrap();
+
+        let json: Value = res.json().await.unwrap();
+
+        !json["error"].is_object()
+    }
+
     pub async fn load_labels(&mut self) -> HashMap<String, String> {
         let client = reqwest::Client::new();
 
