@@ -376,16 +376,6 @@ impl MailClient {
                     format!("&pageToken={}", page_token.as_ref().unwrap())
                 };
 
-                println!(
-                    " - API Request to https://gmail.googleapis.com/gmail/v1/users/me/history?startHistoryId={}{}",
-                    starting_from,
-                    page_token_part
-                );
-                println!(
-                    " - Bearer {}",
-                    self.google_client.access_token.as_ref().unwrap()
-                );
-
                 let res = client
                     .get(format!(
                         "https://gmail.googleapis.com/gmail/v1/users/me/history?startHistoryId={}{}",
@@ -416,6 +406,7 @@ impl MailClient {
                 Ok(h) => h,
                 Err(_) => {
                     println!("Failed to parse HistoryResponse out of response: {:?}", res);
+                    println!("starting_from is probably no longer valid");
                     panic!();
                 }
             };
