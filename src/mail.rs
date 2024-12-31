@@ -402,7 +402,13 @@ impl MailClient {
                 }
             };
 
-            let history = serde_json::from_value::<HistoryResponse>(res).unwrap();
+            let history = match serde_json::from_value::<HistoryResponse>(res.clone()) {
+                Ok(h) => h,
+                Err(_) => {
+                    println!("Failed to parse HistoryResponse out of response: {:?}", res);
+                    panic!();
+                }
+            };
 
             if let Some(history) = history.history {
                 history.into_iter().for_each(|h| {
